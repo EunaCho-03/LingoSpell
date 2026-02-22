@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { FileText, Languages, Zap, Upload, BookOpen, Globe, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroImage from "@/assets/hero-illustration.png";
+import heroImage from "../LingoSpell_Img1-resized.png";
 
 const features = [
   {
