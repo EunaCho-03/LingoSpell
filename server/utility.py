@@ -9,6 +9,9 @@ import requests
 from dotenv import load_dotenv
 from google import genai
 
+
+from PyPDF2 import PdfReader
+
 load_dotenv()
 
 # =========================
@@ -174,3 +177,62 @@ If there's no speech:
             os.remove(tmp_path)
         except OSError:
             pass
+
+# =========================
+# PDF Extraction
+# =========================
+
+def read_pdf_text(pdf: str) -> str:
+    """Extracts text from a PDF file."""
+    reader = PdfReader(pdf.stream)
+    text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
+    return text.strip()
+
+def summarize_pdf(uploaded_file, output_lang: str = "en") -> dict:
+    """Summarize a PDF using Gemini API."""
+    text = read_pdf_text(uploaded_file)
+    if not text:
+        return {
+            "summary": f"No text found in PDF ({output_lang})",
+            "explanation": f"No text found in PDF ({output_lang})"
+        }
+
+
+
+
+    prompt = f"""
+You are given the text content of a PDF file.
+
+Return JSON ONLY (no markdown, no extra text) with exactly these keys:
+- summary: a concise summary in {output_lang} (5-8 bullets)
+- explanation: a friendly 3-6 sentence explanation in {output_lang} for a learner.
+
+If the PDF has no meaningful text:
+- summary should say there's no text (in {output_lang})
+- explanation should briefly say there's no text (in {output_lang})
+"""
+
+    response = gemini_client.models.generate_content(
+    model="gemini-1.5-flash",
+    contents=prompt,
+    config={
+        "response_mime_type": "application/json",
+        "response_json_schema": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string"},
+                "explanation": {"type": "string"},
+            },
+            "required": ["summary", "explanation"],
+        },
+    },
+    )
+
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return {"summary": response.text, "explanation": ""}

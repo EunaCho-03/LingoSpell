@@ -1,7 +1,7 @@
 import base64
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from utility import dub_video, summarize_video
+from utility import dub_video, summarize_video, summarize_pdf
 from dotenv import load_dotenv
 import traceback
 
@@ -49,6 +49,23 @@ def process_route():
     except Exception as e:
         traceback.print_exc() 
         return jsonify({"error": str(e)}), 500
+
+@app.post("/api/text-summary")
+def text_summary():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    uploaded_file = request.files["file"]
+    target_lang = request.form.get("target_lang","en")
+    if uploaded_file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    if not uploaded_file.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "Only PDF files supported"}), 400
+
+    result = summarize_pdf(uploaded_file, target_lang)
+    
+    return jsonify(result)
 
 
 if __name__ == "__main__":
