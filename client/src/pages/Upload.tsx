@@ -86,13 +86,51 @@ const UploadPage = () => {
     if (!file) return;
     setProcessing(true);
     // TODO: connect to backend
-    await new Promise((r) => setTimeout(r, 2000));
-    setProcessing(false);
-    toast({
-      title: "Coming soon!",
-      description:
-        "Backend processing isn't connected yet. We'll wire it up next!",
+     try {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("targetLang", targetLang);
+
+    let endpoint = "";
+
+    // 🔎 Check file type BEFORE making request
+    if (file.type === "application/pdf") {
+      endpoint = "/api/summarize-pdf";
+    } else if (file.type.startsWith("video/")) {
+      endpoint = "/api/dub";
+      formData.append("speakers", speakers);
+    } else {
+      throw new Error("Unsupported file type");
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      body: formData,
     });
+
+    if (!response.ok) {
+      throw new Error("Failed to process file");
+    }
+
+    const data = await response.json();
+
+    toast({
+      title: "Success!",
+      description: "Your file is being processed.",
+    });
+
+    console.log("Backend response:", data);
+  } catch (error: any) {
+    console.error(error);
+
+    toast({
+      title: "Processing failed",
+      description: error.message || "Something went wrong.",
+      variant: "destructive",
+    });
+  } finally {
+    setProcessing(false);
+  }
   };
 
   const isPdf = file?.type === "application/pdf";
