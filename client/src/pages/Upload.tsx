@@ -311,7 +311,7 @@ const UploadPage = () => {
                 onClick={() => setShowOptions(true)}
                 disabled={processing}
                 size="lg"
-                className="mt-5 w-full gap-2 rounded-full text-base font-semibold shadow-[var(--shadow-soft)]"
+                className="glow-btn mt-5 w-full gap-2 rounded-full text-base font-semibold shadow-[var(--shadow-soft)]"
               >
                 <Sparkles className="h-4 w-4" />
                 Summarize & Translate
