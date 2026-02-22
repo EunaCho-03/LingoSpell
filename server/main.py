@@ -1,14 +1,15 @@
 import base64
 from flask import Flask, request, jsonify
-from dotenv import load_dotenv
-
+from flask_cors import CORS
 from utility import dub_video, summarize_video
+from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
 app = Flask(__name__)
 app.config["JSON_AS_ASCII"] = False
-
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:8080"}})
 
 @app.post("/api/process")
 def process_route():
@@ -46,6 +47,7 @@ def process_route():
         })
 
     except Exception as e:
+        traceback.print_exc() 
         return jsonify({"error": str(e)}), 500
 
 

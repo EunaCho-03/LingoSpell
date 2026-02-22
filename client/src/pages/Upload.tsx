@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, FileText, Film, X, Loader2, Sparkles, Languages, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,27 @@ const LANGUAGES = [
   { value: "ar", label: "Arabic" },
   { value: "hi", label: "Hindi" },
   { value: "it", label: "Italian" },
+  //{ value: "bn", label: "Bengali"},
 ];
 
 const SPEAKER_OPTIONS = ["1", "2", "3", "4", "5+"];
+
+const LOADING_MESSAGES = [
+  "🤖 Let me listen carefully…",
+  "🧠 Translating thoughts across languages…",
+  "🎙️ Giving your video a new voice…",
+  "📄 Writing things down neatly…",
+  "✨ Making it easy to understand…",
+  "🚀 Almost done! Hang tight…",
+];
+
+type SummaryResult = {
+  transcript: string;
+  summary: string;
+  explanation: string;
+};
+
+const API_BASE = "http://127.0.0.1:5050"; // ✅ 백엔드 주소
 
 const UploadPage = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -49,7 +67,37 @@ const UploadPage = () => {
   const [showOptions, setShowOptions] = useState(false);
   const [targetLang, setTargetLang] = useState("es");
   const [speakers, setSpeakers] = useState("1");
+
+  // ✅ 결과 표시용 state 추가
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [summaryResult, setSummaryResult] = useState<SummaryResult | null>(null);
+
+  // ✅ 로딩 단계용 state
+  const [loadingStep, setLoadingStep] = useState(0);
+
   const { toast } = useToast();
+
+  // ✅ videoUrl 메모리 누수 방지 (새 URL 만들면 이전 URL 해제)
+  useEffect(() => {
+    return () => {
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+    };
+  }, [videoUrl]);
+
+  useEffect(() => {
+    if (!processing) {
+      setLoadingStep(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setLoadingStep((prev) =>
+        prev < LOADING_MESSAGES.length - 1 ? prev + 1 : prev
+      );
+    }, 2500); // 2.5초마다 메시지 변경
+
+    return () => clearInterval(interval);
+  }, [processing]);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -62,9 +110,15 @@ const UploadPage = () => {
         });
         return;
       }
+
       setFile(f);
+
+      // ✅ 새 파일 선택하면 이전 결과 초기화
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+      setVideoUrl(null);
+      setSummaryResult(null);
     },
-    [toast]
+    [toast, videoUrl]
   );
 
   const onDrop = useCallback(
@@ -85,52 +139,86 @@ const UploadPage = () => {
   const handleProcess = async () => {
     if (!file) return;
     setProcessing(true);
-    // TODO: connect to backend
-     try {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("targetLang", targetLang);
 
-    let endpoint = "";
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    // 🔎 Check file type BEFORE making request
-    if (file.type === "application/pdf") {
-      endpoint = "/api/summarize-pdf";
-    } else if (file.type.startsWith("video/")) {
-      endpoint = "/api/dub";
-      formData.append("speakers", speakers);
-    } else {
-      throw new Error("Unsupported file type");
+      let endpoint = "";
+
+      if (file.type === "application/pdf") {
+        // ✅ PDF endpoint는 너 프로젝트에 맞게 유지
+        endpoint = "/api/summarize-pdf";
+
+        // 보통 백엔드가 target_lang을 기대하므로 여기도 통일 추천
+        formData.append("target_lang", targetLang);
+      } else if (file.type.startsWith("video/")) {
+        // ✅ 백엔드가 현재 /api/process 하나만 있으니까 여기로
+        endpoint = `${API_BASE}/api/process`;
+
+        // ✅ 백엔드 main.py가 읽는 key 이름들
+        formData.append("target_lang", targetLang);
+        formData.append("source_lang", "en"); // 또는 "auto" (ElevenLabs가 지원하면)
+
+        // speakers는 지금 백엔드가 안 쓰지만, 보내도 문제 없음
+        formData.append("speakers", speakers);
+      } else {
+        throw new Error("Unsupported file type");
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to process file");
+      }
+
+      // ✅ PDF 처리 결과는 너 백엔드 형태에 따라 다름 (여기선 콘솔만)
+      if (file.type === "application/pdf") {
+        toast({ title: "Success!", description: "PDF processed." });
+        console.log("PDF response:", data);
+        return;
+      }
+
+      // ✅ VIDEO: summary 저장
+      setSummaryResult(data.summary);
+
+      // ✅ VIDEO: base64 mp4 -> Blob URL 만들어 재생
+      const b64: string | undefined = data.dubbed_mp4_base64;
+      if (!b64) {
+        throw new Error("Backend did not return dubbed_mp4_base64");
+      }
+
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const blob = new Blob([bytes], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      setVideoUrl(url);
+
+      toast({
+        title: "Success!",
+        description: "Dubbed video & summary ready.",
+      });
+
+      console.log("Backend response:", data);
+    } catch (error: any) {
+      console.error(error);
+
+      toast({
+        title: "Processing failed",
+        description: error.message || "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessing(false);
     }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to process file");
-    }
-
-    const data = await response.json();
-
-    toast({
-      title: "Success!",
-      description: "Your file is being processed.",
-    });
-
-    console.log("Backend response:", data);
-  } catch (error: any) {
-    console.error(error);
-
-    toast({
-      title: "Processing failed",
-      description: error.message || "Something went wrong.",
-      variant: "destructive",
-    });
-  } finally {
-    setProcessing(false);
-  }
   };
 
   const isPdf = file?.type === "application/pdf";
@@ -207,7 +295,12 @@ const UploadPage = () => {
                   </p>
                 </div>
                 <button
-                  onClick={() => setFile(null)}
+                  onClick={() => {
+                    setFile(null);
+                    if (videoUrl) URL.revokeObjectURL(videoUrl);
+                    setVideoUrl(null);
+                    setSummaryResult(null);
+                  }}
                   className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -223,6 +316,38 @@ const UploadPage = () => {
                 <Sparkles className="h-4 w-4" />
                 Summarize & Translate
               </Button>
+
+              {/* ✅ 결과 영역: VIDEO */}
+              {videoUrl && (
+                <div className="mt-6 rounded-xl border border-border bg-card p-4">
+                  <p className="mb-2 text-sm font-medium text-foreground">Dubbed Video</p>
+                  <video src={videoUrl} controls className="w-full rounded-lg" />
+                </div>
+              )}
+
+              {/* ✅ 결과 영역: SUMMARY */}
+              {summaryResult && (
+                <div className="mt-6 space-y-4 rounded-xl border border-border bg-card p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Transcript</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {summaryResult.transcript}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Summary</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {summaryResult.summary}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Explanation</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {summaryResult.explanation}
+                    </p>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -316,6 +441,49 @@ const UploadPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ✅ Loading Overlay */}
+      <AnimatePresence>
+        {processing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-[90%] max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
+            >
+              {/* 상단: 스피너 + 메시지 */}
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <p className="text-sm font-medium text-foreground">
+                  {LOADING_MESSAGES[loadingStep]}
+                </p>
+              </div>
+
+              {/* 설명 */}
+              <p className="mt-3 text-xs text-muted-foreground">
+                This may take a minute depending on video length.
+              </p>
+
+              {/* 진행 바 (가짜지만 안정감 줌) */}
+              <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-muted">
+                <motion.div
+                  className="h-full bg-primary"
+                  initial={{ width: "0%" }}
+                  animate={{
+                    width: `${((loadingStep + 1) / LOADING_MESSAGES.length) * 100}%`,
+                  }}
+                  transition={{ duration: 0.6, ease: "easeInOut" }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
