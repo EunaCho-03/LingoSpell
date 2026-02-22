@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FileText, Languages, Zap, Upload, BookOpen, Globe, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroImage from "../LingoSpell_Img1-resized.png";
+import lingoMascot from "../LingoSpell.png";
 
 const features = [
   {
@@ -17,13 +18,13 @@ const features = [
   },
   {
     icon: Zap,
-    title: "Lightning Speed",
-    description: "Powered by arcane AI, your results appear faster than a Nimbus 2000.",
+    title: "Hopper Magic",
+    description: "Powered by GEMINI and ElevenLabs, using a lucky rabbit.",
   },
 ];
 
 const steps = [
-  { icon: Upload, label: "Submit your scroll", detail: "PDF or video — just drag & drop." },
+  { icon: Upload, label: "Submit your scroll", detail: "PDF or video ... just drag & drop!" },
   { icon: BookOpen, label: "Receive the summary", detail: "AI reads and distills the key enchantments." },
   { icon: Globe, label: "Translate it", detail: "Pick a language and cast the spell." },
 ];
@@ -74,7 +75,7 @@ const Index = () => {
             </h1>
             <p className="mt-5 max-w-lg text-lg text-muted-foreground">
               Upload your lecture scrolls or videos and let our enchanted AI
-              summarize the key points and translate them — study smarter, not harder.
+              summarize the key points and translate them. Study smarter, not harder.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
               <Link to="/upload">
@@ -156,7 +157,7 @@ const Index = () => {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="border-t border-border bg-secondary/30 py-24">
+      <section id="how-it-works" className="border-t border-border bg-secondary/30 py-16">
         <div className="container mx-auto px-6">
           <motion.h2
             initial="hidden"
@@ -168,6 +169,13 @@ const Index = () => {
           >
             Three spells. That's it.
           </motion.h2>
+          <div className="flex justify-center">
+  <img
+    src={lingoMascot}
+    alt="Lingo Mascot"
+    className="mx-auto mt-4 h-28 w-auto object-contain drop-shadow-[0_0_30px_hsl(43_80%_55%/0.35)]"
+  />
+</div>
 
           <div className="mx-auto mt-16 grid max-w-3xl gap-8 sm:grid-cols-3">
             {steps.map((s, i) => (

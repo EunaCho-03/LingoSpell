@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import lingoMascot from "./pngimg.com_-_wand_PNG14-removebg-preview.png";
 const Navbar = () => {
   const location = useLocation();
 
@@ -14,15 +14,18 @@ const Navbar = () => {
       className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
-          <span className="font-display text-xl font-bold tracking-wider text-foreground">
-            LingoSpell
-          </span>
-        </Link>
-
+        
+        <Link to="/" className="flex items-center h-full gap-2">
+  <span className="text-yellow-400 font-extrabold text-xl tracking-wider drop-shadow-[0_0_6px_rgba(252,211,77,0.8)]">
+    Lingo Spell
+  </span>
+  <img
+    src={lingoMascot}
+    alt="Lingo Mascot"
+    className="h-8 w-auto object-contain"
+  />
+</Link>
+        
         <div className="flex items-center gap-3">
           {location.pathname !== "/upload" ? (
             <Link to="/upload">
