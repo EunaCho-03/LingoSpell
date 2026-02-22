@@ -8,6 +8,7 @@ from utility import dub_video, summarize_video
 load_dotenv()
 
 app = Flask(__name__)
+app.config["JSON_AS_ASCII"] = False
 
 @app.post("/api/dub")
 def dub_route():
@@ -41,10 +42,13 @@ def summarize_route():
     f = request.files["file"]
     video_bytes = f.read()
 
-    try:
-        result = summarize_video(video_bytes)
-        return jsonify(result)
+    output_lang = (request.form.get("target_lang") or "").strip().lower()
+    if not output_lang:
+        return jsonify({"error": "Missing target_lang. Send target_lang like 'ko', 'en', 'es'."}), 400
 
+    try:
+        result = summarize_video(video_bytes, output_lang=output_lang)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
